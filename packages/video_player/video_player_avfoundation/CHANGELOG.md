@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## 2.9.4
 
 * Ensures that the display link does not continue requesting frames after a player is disposed.
@@ -13,6 +14,11 @@
 ## 2.9.1
 
 * Refactors native code for improved testability.
+=======
+## NEXT
+
+* Automatic Bitrate Streaming support to iOS.
+>>>>>>> ba09e1291 (updating the CHANGELOG.md and pubspec.yaml versions)
 
 ## 2.9.0
 

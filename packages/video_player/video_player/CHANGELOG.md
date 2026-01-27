@@ -1,11 +1,16 @@
 ## 2.11.1
 
+<<<<<<< HEAD
 * Optimizes caption retrieval with binary search.
 
 ## 2.11.0
 
 * Adds `getAudioTracks()` and `selectAudioTrack()` methods to retrieve and select available audio tracks.
 * Updates minimum supported SDK version to Flutter 3.38/Dart 3.10.
+=======
+* Automatic Bitrate Streaming support to Android and iOS.
+* Updates minimum supported SDK version to Flutter 3.32/Dart 3.8.
+>>>>>>> ba09e1291 (updating the CHANGELOG.md and pubspec.yaml versions)
 * Updates README to reflect currently supported OS versions for the latest
   versions of the endorsed platform implementations.
   * Applications built with older versions of Flutter will continue to

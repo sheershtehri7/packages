@@ -1,6 +1,11 @@
 ## NEXT
 
+<<<<<<< HEAD
 * Updates minimum supported SDK version to Flutter 3.35/Dart 3.9.
+=======
+* Automatic Bitrate Streaming support to Android and iOS.
+* Updates minimum supported SDK version to Flutter 3.32/Dart 3.8.
+>>>>>>> ba09e1291 (updating the CHANGELOG.md and pubspec.yaml versions)
 
 ## 6.6.0
 

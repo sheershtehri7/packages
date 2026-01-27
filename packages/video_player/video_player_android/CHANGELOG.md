@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## 2.9.4
 
 * Updates `androidx.media3` to 1.9.2.
@@ -5,6 +6,11 @@
 ## 2.9.3
 
 * Updates `androidx.media3` to 1.9.1.
+=======
+## NEXT
+
+* Automatic Bitrate Streaming support to Android.
+>>>>>>> ba09e1291 (updating the CHANGELOG.md and pubspec.yaml versions)
 
 ## 2.9.2
 
