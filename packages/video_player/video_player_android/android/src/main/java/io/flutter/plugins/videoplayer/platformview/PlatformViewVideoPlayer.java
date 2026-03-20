@@ -60,50 +60,35 @@ public class PlatformViewVideoPlayer extends VideoPlayer {
         asset.getMediaItem(),
         options,
         () -> {
-          // Create bandwidth meter for adaptive streaming
-          DefaultBandwidthMeter bandwidthMeter = new DefaultBandwidthMeter.Builder(context)
-              .setInitialBitrateEstimate(1_000_000) // Start with 1 Mbps estimate
-              .build();
-          
-          // Create adaptive track selection factory
-          AdaptiveTrackSelection.Factory trackSelectionFactory = 
-              new AdaptiveTrackSelection.Factory();
-          
-          DefaultTrackSelector trackSelector = new DefaultTrackSelector(context, trackSelectionFactory);
-          
-          // Configure for YouTube-style adaptive streaming
+          DefaultBandwidthMeter bandwidthMeter =
+              new DefaultBandwidthMeter.Builder(context)
+                  .setInitialBitrateEstimate(1_000_000)
+                  .build();
+
+          // AdaptiveTrackSelection.Factory enables ABR: ExoPlayer selects
+          // video tracks based on measured network bandwidth.
+          DefaultTrackSelector trackSelector =
+              new DefaultTrackSelector(
+                  context, new AdaptiveTrackSelection.Factory());
+
           trackSelector.setParameters(
               trackSelector
                   .buildUponParameters()
-                  // ENABLE adaptive bitrate streaming
-                  .setAllowVideoNonSeamlessAdaptiveness(true) // Allow quality switches even with brief buffering
-                  .setAllowVideoMixedMimeTypeAdaptiveness(false) // Keep same codec for stability
-                  .setAllowVideoMixedDecoderSupportAdaptiveness(true) // Allow decoder adaptiveness
-                  // Audio settings
-                  .setAllowAudioMixedMimeTypeAdaptiveness(false)
-                  .setAllowAudioMixedSampleRateAdaptiveness(true)
-                  .setAllowAudioMixedChannelCountAdaptiveness(true)
-                  // Don't force lowest bitrate - let ExoPlayer choose based on network
+                  .setAllowVideoNonSeamlessAdaptiveness(true)
+                  .setAllowVideoMixedDecoderSupportAdaptiveness(true)
                   .setForceLowestBitrate(false)
                   .setForceHighestSupportedBitrate(false)
-                  // Let ExoPlayer adapt based on network conditions
-                  .setMaxVideoBitrate(Integer.MAX_VALUE)
                   .build());
-          
-          android.util.Log.d("PlatformViewVideoPlayer", "Adaptive bitrate streaming ENABLED - ExoPlayer will automatically switch qualities based on network speed");
-          
+
           ExoPlayer.Builder builder =
               new ExoPlayer.Builder(context)
                   .setTrackSelector(trackSelector)
-                  .setBandwidthMeter(bandwidthMeter) // Attach bandwidth meter
+                  .setBandwidthMeter(bandwidthMeter)
                   .setMediaSourceFactory(asset.getMediaSourceFactory(context));
-          
+
           return builder.build();
         });
-    
-    // DO NOT call enableSmoothAdaptiveStreaming() - it disables ABR!
-    // ExoPlayer is now configured for automatic adaptive streaming
-    
+
     return player;
   }
 

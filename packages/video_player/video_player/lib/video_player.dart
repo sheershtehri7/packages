@@ -13,8 +13,8 @@ import 'package:flutter/services.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart'
     as platform_interface;
 
-import 'src/closed_caption_file.dart';
 import 'src/adaptive_bitrate_manager.dart';
+import 'src/closed_caption_file.dart';
 
 export 'package:video_player_platform_interface/video_player_platform_interface.dart'
     show
@@ -27,7 +27,6 @@ export 'package:video_player_platform_interface/video_player_platform_interface.
         VideoViewType;
 
 export 'src/closed_caption_file.dart';
-export 'src/adaptive_bitrate_manager.dart';
 
 /// Represents an audio track in a video with its metadata.
 @immutable
@@ -592,12 +591,15 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         kUninitializedPlayerId;
     _creatingCompleter!.complete(null);
 
-    // Initialize automatic adaptive bitrate management for HLS
-    _adaptiveBitrateManager = AdaptiveBitrateManager(
-      playerId: _playerId,
-      platform: _videoPlayerPlatform,
-    );
-    await _adaptiveBitrateManager!.startAutoAdaptiveQuality();
+    // Enable adaptive bitrate management only for network streams
+    // (local files and assets don't use HLS/DASH adaptive streaming).
+    if (dataSourceType == platform_interface.DataSourceType.network) {
+      _adaptiveBitrateManager = AdaptiveBitrateManager(
+        playerId: _playerId,
+        platform: _videoPlayerPlatform,
+      );
+      await _adaptiveBitrateManager!.startAutoAdaptiveQuality();
+    }
 
     final initializingCompleter = Completer<void>();
 

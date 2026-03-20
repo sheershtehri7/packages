@@ -14,85 +14,81 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
 import io.flutter.plugin.platform.PlatformView;
 
+/**
+ * A {@link PlatformView} that displays video content using a {@link TextureView}.
+ *
+ * <p>TextureView is used instead of SurfaceView to support seamless resolution changes during
+ * adaptive bitrate streaming (HLS/DASH). SurfaceView operates on a separate window layer which
+ * can cause visual artifacts when the video resolution changes mid-playback.
+ */
 @UnstableApi
 public final class PlatformVideoView implements PlatformView {
+  @NonNull private final TextureView textureView;
+  @NonNull private final ExoPlayer exoPlayer;
+  private Surface surface;
 
-    @NonNull
-    private final TextureView textureView;
+  /**
+   * Constructs a new PlatformVideoView.
+   *
+   * @param context The context in which the view is running.
+   * @param exoPlayer The ExoPlayer instance used to play the video.
+   */
+  public PlatformVideoView(@NonNull Context context, @NonNull ExoPlayer exoPlayer) {
+    this.exoPlayer = exoPlayer;
+    this.textureView = new TextureView(context);
 
-    @NonNull
-    private final ExoPlayer exoPlayer;
+    textureView.setSurfaceTextureListener(
+        new TextureView.SurfaceTextureListener() {
+          @Override
+          public void onSurfaceTextureAvailable(
+              @NonNull SurfaceTexture surfaceTexture, int width, int height) {
+            surface = new Surface(surfaceTexture);
+            exoPlayer.setVideoSurface(surface);
+          }
 
-    private Surface surface;
+          @Override
+          public void onSurfaceTextureSizeChanged(
+              @NonNull SurfaceTexture surfaceTexture, int width, int height) {
+            // No-op: ExoPlayer handles resolution changes during adaptive bitrate streaming.
+            // The MediaCodec decoder seamlessly adapts to the new resolution.
+          }
 
-    public PlatformVideoView(
-            @NonNull Context context,
-            @NonNull ExoPlayer exoPlayer
-    ) {
-        this.exoPlayer = exoPlayer;
-        this.textureView = new TextureView(context);
+          @Override
+          public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surfaceTexture) {
+            exoPlayer.setVideoSurface(null);
+            if (surface != null) {
+              surface.release();
+              surface = null;
+            }
+            return true;
+          }
 
-        textureView.setSurfaceTextureListener(
-                new TextureView.SurfaceTextureListener() {
-                    @Override
-                    public void onSurfaceTextureAvailable(
-                            @NonNull SurfaceTexture surfaceTexture,
-                            int width,
-                            int height
-                    ) {
-                        surface = new Surface(surfaceTexture);
-                        exoPlayer.setVideoSurface(surface);
-                    }
+          @Override
+          public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surfaceTexture) {
+            // No-op.
+          }
+        });
+  }
 
-                    @Override
-                    public void onSurfaceTextureSizeChanged(
-                            @NonNull SurfaceTexture surfaceTexture,
-                            int width,
-                            int height
-                    ) {
-                        // ExoPlayer handles HLS adaptive bitrate resolution changes automatically.
-                        // No need to recreate the surface - doing so causes frame misalignment issues.
-                        // The MediaCodec decoder will seamlessly adapt to the new resolution.
-                    }
+  /**
+   * Returns the view associated with this PlatformView.
+   *
+   * @return The TextureView used to display the video.
+   */
+  @NonNull
+  @Override
+  public View getView() {
+    return textureView;
+  }
 
-                    @Override
-                    public boolean onSurfaceTextureDestroyed(
-                            @NonNull SurfaceTexture surfaceTexture
-                    ) {
-                        exoPlayer.setVideoSurface(null);
-                        if (surface != null) {
-                            surface.release();
-                            surface = null;
-                        }
-                        return true; // TextureView can safely release the SurfaceTexture
-                    }
-
-                    @Override
-                    public void onSurfaceTextureUpdated(
-                            @NonNull SurfaceTexture surfaceTexture
-                    ) {
-                        // No-op
-                    }
-                }
-        );
+  /** Disposes of the resources used by this PlatformView. */
+  @Override
+  public void dispose() {
+    textureView.setSurfaceTextureListener(null);
+    exoPlayer.setVideoSurface(null);
+    if (surface != null) {
+      surface.release();
+      surface = null;
     }
-
-    @NonNull
-    @Override
-    public View getView() {
-        return textureView;
-    }
-
-    @Override
-    public void dispose() {
-        // Remove listener to prevent callback leaks
-        textureView.setSurfaceTextureListener(null);
-        
-        exoPlayer.setVideoSurface(null);
-        
-        if (surface != null) {
-            surface.release();
-            surface = null;
-        }
-    }
+  }
 }

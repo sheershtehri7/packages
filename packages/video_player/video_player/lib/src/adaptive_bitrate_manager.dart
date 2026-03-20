@@ -1,94 +1,128 @@
 import 'dart:async';
+
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
-/// Automatic Adaptive Bitrate Manager for HLS Streaming
-/// Manages quality automatically based on buffering and network conditions
+/// Manages adaptive bitrate selection for HLS/DASH streaming.
+///
+/// Monitors buffering events and adjusts the maximum bandwidth limit
+/// to help the native player select appropriate quality variants.
+///
+/// This acts as a supervisory controller on top of the native player's
+/// own ABR logic (ExoPlayer's [AdaptiveTrackSelection] on Android,
+/// AVFoundation on iOS). It forces quality down via [setBandwidthLimit]
+/// when persistent buffering is detected, and relaxes the limit when
+/// playback stabilizes.
 class AdaptiveBitrateManager {
-  final int playerId;
-  final VideoPlayerPlatform _platform;
-
-  late Timer _monitoringTimer;
-  int _bufferingCount = 0;
-  int _currentQualityLevel = 0;
-  DateTime _lastQualityChange = DateTime.now();
-  bool _isMonitoring = false;
-
-  // Quality presets (bits per second)
-  static const int quality360p = 500000; // 500 kbps
-  static const int quality480p = 800000; // 800 kbps
-  static const int quality720p = 1200000; // 1.2 Mbps
-  static const int quality1080p = 2500000; // 2.5 Mbps
-
+  /// Creates an [AdaptiveBitrateManager] for the given [playerId].
   AdaptiveBitrateManager({
     required this.playerId,
     required VideoPlayerPlatform platform,
   }) : _platform = platform;
 
-  /// Start automatic quality monitoring and adjustment
+  /// The player ID this manager controls.
+  final int playerId;
+  final VideoPlayerPlatform _platform;
+
+  Timer? _monitoringTimer;
+  int _bufferingCount = 0;
+  int _currentBandwidthLimit = qualityUnlimited;
+  DateTime _lastQualityChange = DateTime.now();
+  bool _isMonitoring = false;
+
+  /// Bandwidth cap for 360p quality (~500 kbps).
+  static const int quality360p = 500000;
+
+  /// Bandwidth cap for 480p quality (~800 kbps).
+  static const int quality480p = 800000;
+
+  /// Bandwidth cap for 720p quality (~1.2 Mbps).
+  static const int quality720p = 1200000;
+
+  /// Bandwidth cap for 1080p quality (~2.5 Mbps).
+  static const int quality1080p = 2500000;
+
+  /// No bandwidth limit — lets the native player choose freely.
+  static const int qualityUnlimited = 0;
+
+  static const Duration _monitorInterval = Duration(seconds: 3);
+  static const Duration _qualityChangeCooldown = Duration(seconds: 5);
+
+  /// Buffering count decay factor applied each monitoring cycle.
+  ///
+  /// This allows recovery to higher quality after transient buffering.
+  static const double _bufferingDecayFactor = 0.7;
+
+  /// Starts automatic quality monitoring and adjustment.
+  ///
+  /// Removes any existing bandwidth limit and begins periodic analysis.
+  /// Safe to call multiple times — subsequent calls are no-ops.
   Future<void> startAutoAdaptiveQuality() async {
-    if (_isMonitoring) return;
+    if (_isMonitoring) {
+      return;
+    }
     _isMonitoring = true;
 
     try {
-      await _platform.setBandwidthLimit(playerId, 0);
+      await _platform.setBandwidthLimit(playerId, qualityUnlimited);
     } catch (e) {
-      print('[AdaptiveBitrate] Error starting: $e');
       _isMonitoring = false;
       return;
     }
 
-    _monitoringTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
-      await _analyzeAndAdjust();
+    _monitoringTimer = Timer.periodic(_monitorInterval, (_) {
+      _analyzeAndAdjust();
     });
   }
 
-  /// Record a buffering event
+  /// Records a buffering event from the player.
+  ///
+  /// Called by [VideoPlayerController] when a [bufferingStart] event occurs.
   void recordBufferingEvent() {
-    if (_isMonitoring) _bufferingCount++;
+    if (_isMonitoring) {
+      _bufferingCount++;
+    }
   }
 
-  /// Analyze network conditions and adjust quality
+  /// Analyzes recent buffering history and adjusts the bandwidth limit.
   Future<void> _analyzeAndAdjust() async {
-    // Don't adjust too frequently
-    if (DateTime.now().difference(_lastQualityChange).inSeconds < 5) {
+    if (DateTime.now().difference(_lastQualityChange) < _qualityChangeCooldown) {
       return;
     }
 
-    int newQuality = _selectOptimalQuality();
+    final int newLimit = _selectOptimalBandwidth();
 
-    if (newQuality != _currentQualityLevel) {
+    // Apply decay so transient buffering doesn't permanently pin quality low.
+    _bufferingCount = (_bufferingCount * _bufferingDecayFactor).floor();
+
+    if (newLimit != _currentBandwidthLimit) {
       try {
-        await _platform.setBandwidthLimit(playerId, newQuality);
-        _currentQualityLevel = newQuality;
+        await _platform.setBandwidthLimit(playerId, newLimit);
+        _currentBandwidthLimit = newLimit;
         _lastQualityChange = DateTime.now();
-        _bufferingCount = 0;
       } catch (e) {
-        print('[AdaptiveBitrate] Error adjusting quality: $e');
+        // Silently ignore errors during auto-adjustment.
       }
     }
   }
 
-  /// Select optimal quality based on buffering and network conditions
-  int _selectOptimalQuality() {
-    // Conservative approach: start high, lower on buffering
+  /// Selects optimal bandwidth based on recent buffering frequency.
+  int _selectOptimalBandwidth() {
     if (_bufferingCount > 5) {
-      return quality360p; // Heavy buffering
+      return quality360p;
     }
-
     if (_bufferingCount > 2) {
-      return quality480p; // Moderate buffering
+      return quality480p;
     }
-
-    if (_bufferingCount == 0) {
-      return quality1080p; // No buffering - try high quality
+    if (_bufferingCount > 0) {
+      return quality720p;
     }
-
-    return quality720p; // Default middle quality
+    return qualityUnlimited;
   }
 
-  /// Stop automatic quality management
+  /// Stops monitoring and releases resources.
   void dispose() {
     _isMonitoring = false;
-    _monitoringTimer.cancel();
+    _monitoringTimer?.cancel();
+    _monitoringTimer = null;
   }
 }

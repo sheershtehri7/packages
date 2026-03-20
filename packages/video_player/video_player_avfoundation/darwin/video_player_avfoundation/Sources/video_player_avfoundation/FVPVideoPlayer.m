@@ -514,13 +514,12 @@ NS_INLINE CGFloat radiansToDegrees(CGFloat radians) {
   NSAssert(currentItem, @"currentItem should not be nil");
 
   if (maxBandwidthBps <= 0) {
-    // Remove the bandwidth limit by setting to the maximum value
-    // This allows AVPlayer to select any available quality
-    currentItem.preferredPeakBitRate = INFINITY;
+    // A value of 0 tells AVFoundation to use its default limit, effectively
+    // removing any cap and letting the player choose quality freely.
+    currentItem.preferredPeakBitRate = 0;
   } else {
-    // Set the preferred peak bitrate in bits per second
-    // AVPlayer will attempt to play video at or below this bitrate
-    // Note: The actual bitrate selected depends on the available HLS variants
+    // AVPlayer will attempt to select HLS variant streams at or below this
+    // bitrate. The actual bitrate depends on available variants.
     currentItem.preferredPeakBitRate = (double)maxBandwidthBps;
   }
 }
