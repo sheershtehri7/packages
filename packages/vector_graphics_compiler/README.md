@@ -29,6 +29,12 @@ Optimizations:
 - Group collapsing
 - Mask and clip elimination
 
+## Example
+
+For a working example that demonstrates using `vector_graphics_compiler` as a
+build-time SVG asset transformer, see the
+[`vector_graphics` example app](https://github.com/flutter/packages/tree/main/packages/vector_graphics/example).
+
 ## Commemoration
 
 This package was originally authored by
