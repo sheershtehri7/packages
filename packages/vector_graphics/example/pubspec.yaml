@@ -19,6 +19,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - path: assets/dart_logo.svg
+      transformers:
+        - package: vector_graphics_compiler
 
 dependency_overrides:
   vector_graphics:
